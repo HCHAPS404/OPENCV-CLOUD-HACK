@@ -1,0 +1,164 @@
+version: '3.8'
+
+services:
+  # Base de Datos Geoespacial
+  postgres-postgis:
+    image: postgis/postgis:16-3.4
+    container_name: krop-postgis
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+
+  # Broker de Mensajería
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: krop-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "${RABBITMQ_PORT}:5672"        # Puerto AMQP
+      - "${RABBITMQ_MGMT_PORT}:15672"  # Panel Web de Administración
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  # Emulador de AWS S3 en Local
+  localstack:
+    image: localstack/localstack:latest
+    container_name: krop-localstack
+    ports:
+      - "${LOCALSTACK_PORT}:4566"
+    environment:
+      - SERVICES=s3
+      - AWS_DEFAULT_REGION=${AWS_REGION}
+
+  # Backend Principal (Java Spring Boot)
+  core-service:
+    build:
+      context: ./services/core-service
+      dockerfile: Dockerfile
+    container_name: krop-core-service
+    ports:
+      - "${CORE_SERVICE_PORT}:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-postgis:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USERNAME=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+    depends_on:
+      - postgres-postgis
+      - rabbitmq
+      - localstack
+
+  # API para Rovers y Sensores IoT (FastAPI)
+  iot-service:
+    build:
+      context: ./services/iot-service
+      dockerfile: Dockerfile
+    container_name: krop-iot-service
+    ports:
+      - "${IOT_SERVICE_PORT}:8000"
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+      - AWS_REGION=${AWS_REGION}
+    depends_on:
+      - rabbitmq
+      - localstack
+
+  # Scheduler en Bucle Local
+  scheduler-service:
+    build:
+      context: ./services/scheduler-service
+      dockerfile: Dockerfile
+    container_name: krop-scheduler-service
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - DB_HOST=postgres-postgis
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      - rabbitmq
+      - postgres-postgis
+
+  # Workers de Procesamiento
+  optical-worker:
+    build:
+      context: ./services/workers/optical-worker
+      dockerfile: Dockerfile
+    container_name: krop-optical-worker
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - DB_HOST=postgres-postgis
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+    depends_on:
+      - rabbitmq
+      - postgres-postgis
+
+  radar-worker:
+    build:
+      context: ./services/workers/radar-worker
+      dockerfile: Dockerfile
+    container_name: krop-radar-worker
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - DB_HOST=postgres-postgis
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+    depends_on:
+      - rabbitmq
+      - postgres-postgis
+
+  proximal-vision-worker:
+    build:
+      context: ./services/workers/proximal-vision-worker
+      dockerfile: Dockerfile
+    container_name: krop-proximal-vision-worker
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - DB_HOST=postgres-postgis
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
+    depends_on:
+      - rabbitmq
+      - postgres-postgis
+
+  timeseries-weather-worker:
+    build:
+      context: ./services/workers/timeseries-weather-worker
+      dockerfile: Dockerfile
+    container_name: krop-timeseries-weather-worker
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - DB_HOST=postgres-postgis
+      - DB_NAME=${POSTGRES_DB}
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      - rabbitmq
+      - postgres-postgis
+
+volumes:
+  postgis_data:
+  rabbitmq_data:

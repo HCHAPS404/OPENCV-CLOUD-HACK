@@ -1,0 +1,1 @@
+Se usa Python 3.12
