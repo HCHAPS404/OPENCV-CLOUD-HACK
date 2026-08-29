@@ -1,0 +1,24 @@
+version: 0.1
+resources:
+  # Lambda satellite-check
+  - resource_type: aws_lambda_function
+    name: module.lambda_satellite_check.aws_lambda_function.this
+    monthly_requests: 100000
+    average_duration_ms: 500
+
+  # Lambda on-demand-analysis  
+  - resource_type: aws_lambda_function
+    name: module.lambda_on_demand_analysis.aws_lambda_function.this
+    monthly_requests: 50000
+    average_duration_ms: 200
+
+  # S3 bucket
+  - resource_type: aws_s3_bucket
+    name: module.s3.aws_s3_bucket.satellite_images
+    monthly_data_transfer_gb: 50
+    monthly_requests: 10000
+
+  # RDS
+  - resource_type: aws_db_instance
+    name: module.rds.aws_db_instance.postgis
+    monthly_data_stored_gb: 20
