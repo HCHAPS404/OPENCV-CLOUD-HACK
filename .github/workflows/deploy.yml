@@ -51,7 +51,7 @@ jobs:
         with:
           context: ${{ matrix.service.path }}
           push: true
-          tags: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.service.name }}:latest
+          tags: ${{ steps.ecr-login.outputs.registry }}/krop/${{ matrix.service.name }}:latest
   
       - name: Forzar redeploy en ECS (solo workers)
         if: contains(fromJson('["optical-worker","radar-worker","proximal-vision-worker"]'), matrix.service.name)
