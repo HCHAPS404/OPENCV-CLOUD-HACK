@@ -21,15 +21,15 @@ jobs:
       matrix:
         service:
           - name: core-service
-            path: ./service/core-service
+            path: ./services/core-service
           - name: iot-service
-            path: ./service/iot-service
+            path: ./services/iot-service
           - name: optical-worker
             path: ./service/optical-worker
           - name: radar-worker
-            path: ./service/radar-worker
+            path: ./services/radar-worker
           - name: proximal-vision-worker
-            path: ./service/proximal-vision-worker
+            path: ./services/proximal-vision-worker
   
     steps:
       - name: Descargar código
