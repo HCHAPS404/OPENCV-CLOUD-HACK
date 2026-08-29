@@ -59,4 +59,4 @@ jobs:
           aws ecs update-service \
             --cluster krop-workers-cluster \
             --service krop-${{ matrix.service.name }} \
-            --force-new-deployment
+            --force-new-deployment 
