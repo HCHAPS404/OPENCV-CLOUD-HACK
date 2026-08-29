@@ -53,10 +53,10 @@ jobs:
           push: true
           tags: ${{ steps.ecr-login.outputs.registry }}/krop/${{ matrix.service.name }}:latest
   
-      - name: Forzar redeploy en ECS (solo workers)
-        if: contains(fromJson('["optical-worker","radar-worker","proximal-vision-worker"]'), matrix.service.name)
-        run: |
-          aws ecs update-service \
-            --cluster krop-workers-cluster \
-            --service krop-${{ matrix.service.name }} \
-            --force-new-deployment 
+      # - name: Forzar redeploy en ECS (solo workers)
+      #   if: contains(fromJson('["optical-worker","radar-worker","proximal-vision-worker"]'), matrix.service.name)
+      #   run: |
+      #     aws ecs update-service \
+      #       --cluster krop-workers-cluster \
+      #       --service krop-${{ matrix.service.name }} \
+      #       --force-new-deployment 
