@@ -1,3 +1,4 @@
+# Para subir algo y forzar la detención debemos: force_destroy= true en el bloque de lifecycle poner ignore_changes = [force_destroy]
 resource "aws_s3_bucket" "satellite_images" {
   bucket = var.bucket_name
 

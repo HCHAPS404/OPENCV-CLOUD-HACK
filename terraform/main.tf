@@ -1,3 +1,4 @@
+#variables internas de solo lectura
 locals {
   common_ecr_repos = [
     "core-service",
@@ -67,7 +68,7 @@ module "rds" {
 module "rabbitmq_ec2" {
   source             = "./modules/rabbitmq_ec2"
   project_name       = var.project_name
-  private_subnet_id  = module.vpc.private_subnet_ids[0]
+  private_subnet_id  = module.vpc.private_subnet_ids[0] # Esto es privado no publico
   security_group_id  = module.security.rabbitmq_sg_id
   instance_type      = var.rabbitmq_instance_type
   rabbitmq_user      = var.rabbitmq_user
@@ -92,7 +93,11 @@ module "apprunner_core_service" {
   port                              = var.core_service_port
   vpc_connector_subnet_ids          = module.vpc.private_subnet_ids
   vpc_connector_security_group_ids  = [module.security.apprunner_core_sg_id]
-  secrets_manager_arns              = [module.secrets_manager.secret_arns["db-password"]]
+
+  secrets_manager_arns = [
+    module.secrets_manager.secret_arns["db-password"],
+    module.secrets_manager.secret_arns["rabbitmq-password"],   # secrets de rabbitMQ
+  ]
 
   environment_variables = {
     R2DBC_URL     = "r2dbc:postgresql://${var.db_username}@${module.rds.endpoint}:${module.rds.port}/${module.rds.db_name}"
@@ -102,10 +107,16 @@ module "apprunner_core_service" {
     DB_NAME       = module.rds.db_name
     S3_BUCKET     = module.s3.bucket_name
     AWS_REGION    = var.aws_region
+
+    # --- nuevo: RabbitMQ ---
+    RABBITMQ_HOST = module.rabbitmq_ec2.private_ip
+    RABBITMQ_PORT = "5672"
+    RABBITMQ_USER = var.rabbitmq_user
   }
 
   environment_secrets = {
     POSTGRES_PASSWORD = module.secrets_manager.secret_arns["db-password"]
+    RABBITMQ_PASSWORD = module.secrets_manager.secret_arns["rabbitmq-password"]   # rabbitMQ password
   }
 
   extra_instance_policy_statements = [

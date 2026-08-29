@@ -61,6 +61,71 @@ resource "aws_security_group" "lambda" {
   tags = { Name = "${var.project_name}-sg-lambda" }
 }
 
+resource "aws_security_group" "rabbitmq" {
+  name        = "${var.project_name}-sg-rabbitmq"
+  description = "RabbitMQ EC2 - AMQP desde core-service, iot-service, workers y lambdas"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    description     = "AMQP desde core-service"
+    from_port       = 5672
+    to_port         = 5672
+    protocol        = "tcp"
+    security_groups = [aws_security_group.apprunner_core.id]
+  }
+
+  ingress {
+    description     = "AMQP desde iot-service"
+    from_port       = 5672
+    to_port         = 5672
+    protocol        = "tcp"
+    security_groups = [aws_security_group.apprunner_iot.id]
+  }
+
+  ingress {
+    description     = "AMQP desde workers ECS"
+    from_port       = 5672
+    to_port         = 5672
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs_workers.id]
+  }
+
+  ingress {
+    description     = "AMQP desde lambdas"
+    from_port       = 5672
+    to_port         = 5672
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lambda.id]
+  }
+
+  ingress {
+    description = "Management UI dentro de la VPC"
+    from_port   = 15672
+    to_port     = 15672
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  ingress {
+    description = "SSH dentro de la VPC"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project_name}-sg-rabbitmq"
+  }
+}
+
 resource "aws_security_group" "rds" {
   name        = "${var.project_name}-sg-rds"
   description = "RDS Postgres/PostGIS - solo desde App Runner y Lambda"
@@ -106,59 +171,4 @@ resource "aws_security_group" "rds" {
   }
 
   tags = { Name = "${var.project_name}-sg-rds" }
-}
-
-resource "aws_security_group" "rabbitmq" {
-  name        = "${var.project_name}-sg-rabbitmq"
-  description = "RabbitMQ EC2 - AMQP desde iot-service, workers y lambda"
-  vpc_id      = var.vpc_id
-
-  ingress {
-    description     = "AMQP desde iot-service"
-    from_port       = 5672
-    to_port         = 5672
-    protocol        = "tcp"
-    security_groups = [aws_security_group.apprunner_iot.id]
-  }
-
-  ingress {
-    description     = "AMQP desde workers ECS"
-    from_port       = 5672
-    to_port         = 5672
-    protocol        = "tcp"
-    security_groups = [aws_security_group.ecs_workers.id]
-  }
-
-  ingress {
-    description     = "AMQP desde lambdas (satellite-check publica tiles nuevos)"
-    from_port       = 5672
-    to_port         = 5672
-    protocol        = "tcp"
-    security_groups = [aws_security_group.lambda.id]
-  }
-
-  ingress {
-    description = "Management UI solo dentro de la VPC"
-    from_port   = 15672
-    to_port     = 15672
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  ingress {
-    description = "SSH solo dentro de la VPC (usar SSM en producción)"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.vpc_cidr]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = { Name = "${var.project_name}-sg-rabbitmq" }
 }

@@ -1,9 +1,10 @@
+# Estas son variables internas de solo lectura
 locals {
   az_names = [for a in var.azs : "${var.region}${a}"]
 }
 
 resource "aws_vpc" "this" {
-  cidr_block           = var.vpc_cidr
+  cidr_block           = var.vpc_cidr # ej: 10.20.0.0/16 -> 65,000 Ips disponibles
   enable_dns_support   = true
   enable_dns_hostnames = true
 

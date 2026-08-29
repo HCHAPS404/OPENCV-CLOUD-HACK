@@ -1,6 +1,12 @@
 # OPENCV-CLOUD-HACK
 Arquitectura de flujo de procesamiento por pasos
 
+## Arquitectura de la red / VPC
+
+![Arquitectura de red VPC](assets/arquitectura_red_vpc.png)
+
+> Coloca la imagen en la ruta `assets/arquitectura_red_vpc.png` para que aparezca aquí.
+
 Requerimos extenciones en postgres: 
 
 ```sql

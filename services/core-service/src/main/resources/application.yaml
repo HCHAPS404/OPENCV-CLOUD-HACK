@@ -26,8 +26,8 @@ spring:
             initial-interval: 2000ms
             max-attempts: 3
 
-    # Desactivar el health-check de Rabbit en Actuator si no quieres que bote WARN cuando esté caído
-    management:
-      health:
-        rabbit:
-          enabled: true
+  # Desactivar el health-check de Rabbit en Actuator si no quieres que bote WARN cuando esté caído
+  management:
+    health:
+      rabbit:
+        enabled: true

@@ -5,14 +5,15 @@ resource "aws_db_subnet_group" "this" {
   tags = { Name = "${var.project_name}-db-subnet-group" }
 }
 
+#Dato y es que esto no instala postgis automaticamente, hay que instalarlo manualmente en la base de datos una vez creada.
 resource "aws_db_instance" "postgis" {
   identifier     = "${var.project_name}-postgis"
   engine         = "postgres"
-  engine_version = var.engine_version
+  engine_version = var.engine_version # 16.4 por defecto
 
-  instance_class    = var.instance_class
-  allocated_storage = var.allocated_storage
-  storage_type      = "gp3"
+  instance_class    = var.instance_class # 'db.t3.micro' por defecto
+  allocated_storage = var.allocated_storage # 20 (GB) por defecto
+  storage_type      = "gp3" # gp3 significa SSD de propósito general, más rápido y más barato que gp2
   storage_encrypted = true
 
   db_name  = var.db_name
@@ -24,9 +25,9 @@ resource "aws_db_instance" "postgis" {
 
   multi_az                = false
   publicly_accessible     = false
-  backup_retention_period = 7
-  skip_final_snapshot     = true
-  deletion_protection     = false
+  backup_retention_period = 7 # Backups automáticos durante 7 días
+  skip_final_snapshot     = true # Para el snapshot final, aqui se omite
+  deletion_protection     = false # quita la protección de borrado
 
   tags = { Name = "${var.project_name}-postgis" }
 }

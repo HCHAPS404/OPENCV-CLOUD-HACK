@@ -67,7 +67,7 @@ resource "aws_apprunner_service" "this" {
 
   source_configuration {
     authentication_configuration {
-      access_role_arn = aws_iam_role.ecr_access.arn
+      access_role_arn = aws_iam_role.ecr_access.arn #le damos permiso a app runer de hacer docker pull desde el ECR privado
     }
 
     image_repository {

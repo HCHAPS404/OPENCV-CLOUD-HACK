@@ -83,3 +83,18 @@ terraform apply
 ## Variables sensibles
 
 Todas las que llevan contraseñas o API keys están marcadas `sensitive = true`. Pásalas por `terraform.tfvars` (que está en `.gitignore`) o por variables de entorno `TF_VAR_db_password`, etc. — nunca las subas al repo.
+
+## Para Montar y para destruir
+
+   ```bash
+   terraform apply tfplan
+
+   # 1. Crea SOLO los repos ECR primero
+    terraform apply -target=module.ecr
+
+    # 2. Corre tu workflow de GitHub Actions (o docker push manual)
+    #    para que haya al menos una imagen "latest" en cada repo
+
+    # 3. Ahora sí, el apply completo
+    terraform apply
+   ```

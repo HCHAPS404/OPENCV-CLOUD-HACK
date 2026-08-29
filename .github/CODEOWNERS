@@ -1,0 +1,5 @@
+# Por defecto, todo el repositorio me pasa revisión a mí
+* @Kgnot
+
+# Lo que esté en la carpeta /edge/ (rover, esp32, etc.) le pasa revisión a HCHAPS
+/edge/** @HCHAPS4004
