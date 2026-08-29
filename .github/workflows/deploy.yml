@@ -15,48 +15,48 @@ jobs:
   # ---------------------------------------------------------
   # CÓDIGO REAL COMENTADO (Descomentar cuando el ECR/ECS estén listos)
   # ---------------------------------------------------------
-  # build-and-push:
-  #   runs-on: ubuntu-latest
-  #   strategy:
-  #     matrix:
-  #       service:
-  #         - name: core-service
-  #           path: ./core-service
-  #         - name: iot-service
-  #           path: ./iot-service
-  #         - name: optical-worker
-  #           path: ./optical-worker
-  #         - name: radar-worker
-  #           path: ./radar-worker
-  #         - name: proximal-vision-worker
-  #           path: ./proximal-vision-worker
-  #
-  #   steps:
-  #     - name: Descargar código
-  #       uses: actions/checkout@v4
-  #
-  #     - name: Configurar credenciales AWS
-  #       uses: aws-actions/configure-aws-credentials@v4
-  #       with:
-  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-  #         aws-region: us-east-1
-  #
-  #     - name: Login a ECR
-  #       id: ecr-login
-  #       uses: aws-actions/amazon-ecr-login@v2
-  #
-  #     - name: Build y push de la imagen
-  #       uses: docker/build-push-action@v5
-  #       with:
-  #         context: ${{ matrix.service.path }}
-  #         push: true
-  #         tags: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.service.name }}:latest
-  #
-  #     - name: Forzar redeploy en ECS (solo workers)
-  #       if: contains(fromJson('["optical-worker","radar-worker","proximal-vision-worker"]'), matrix.service.name)
-  #       run: |
-  #         aws ecs update-service \
-  #           --cluster krop-workers-cluster \
-  #           --service krop-${{ matrix.service.name }} \
-  #           --force-new-deployment
+  build-and-push:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - name: core-service
+            path: ./core-service
+          - name: iot-service
+            path: ./iot-service
+          - name: optical-worker
+            path: ./optical-worker
+          - name: radar-worker
+            path: ./radar-worker
+          - name: proximal-vision-worker
+            path: ./proximal-vision-worker
+  
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v4
+  
+      - name: Configurar credenciales AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+  
+      - name: Login a ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+  
+      - name: Build y push de la imagen
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.service.path }}
+          push: true
+          tags: ${{ steps.ecr-login.outputs.registry }}/${{ matrix.service.name }}:latest
+  
+      - name: Forzar redeploy en ECS (solo workers)
+        if: contains(fromJson('["optical-worker","radar-worker","proximal-vision-worker"]'), matrix.service.name)
+        run: |
+          aws ecs update-service \
+            --cluster krop-workers-cluster \
+            --service krop-${{ matrix.service.name }} \
+            --force-new-deployment
