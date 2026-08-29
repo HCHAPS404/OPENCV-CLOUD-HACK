@@ -25,11 +25,11 @@ jobs:
           - name: iot-service
             path: ./services/iot-service
           - name: optical-worker
-            path: ./services/optical-worker
+            path: ./services/workers/optical-worker
           - name: radar-worker
-            path: ./services/radar-worker
+            path: ./services/workers/radar-worker
           - name: proximal-vision-worker
-            path: ./services/proximal-vision-worker
+            path: ./services/workers/proximal-vision-worker
   
     steps:
       - name: Descargar código
