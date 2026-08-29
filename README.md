@@ -116,3 +116,28 @@ El flujo paso a paso es:
 2. La App envía una petición HTTP GET al core-api (Spring Boot).
 3. El core-api ejecuta una consulta rápida a la tabla metricas_parcela.
 4. La respuesta se retorna en formato JSON estructurado listo para ser renderizado en la interfaz.
+
+
+# Cómo iniciar en local?:
+
+Primero  debemos iniciar los conetenedores de docker: 
+
+```bash
+docker compose up --build -d
+```
+
+comprobamos que esten los servicios: 
+```bash
+docker compose ps
+```
+
+## Creamos el Bucket S3 en AWS LocalStack
+
+```bash
+docker exec -it krop-localstack awslocal s3 mb s3://krop-storage-dev
+```
+
+Verificamos su existencia :
+```bash
+docker exec -it krop-localstack awslocal s3 ls
+```

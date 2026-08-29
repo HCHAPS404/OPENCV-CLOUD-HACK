@@ -1,3 +1,33 @@
 spring:
   application:
     name: core-service
+  r2dbc:
+    # Si existe la variable R2DBC_URL (en Docker) la usa; si no, apunta a tu Postgres local
+    url: ${R2DBC_URL:r2dbc:postgresql://postgres:postgres@localhost:5432/krop_db}
+    username: ${POSTGRES_USER:postgres}
+    password: ${POSTGRES_PASSWORD:postgres}
+    pool:
+      enabled: true
+      initial-size: 10
+      max-size: 30
+
+    # Configuración de RabbitMQ
+    rabbitmq:
+      host: ${RABBITMQ_HOST:localhost}
+      port: ${RABBITMQ_PORT:5672}
+      username: ${RABBITMQ_USERNAME:guest}
+      password: ${RABBITMQ_PASSWORD:guest}
+      virtual-host: /
+      listener:
+        simple:
+          acknowledge-mode: auto
+          retry:
+            enabled: true
+            initial-interval: 2000ms
+            max-attempts: 3
+
+    # Desactivar el health-check de Rabbit en Actuator si no quieres que bote WARN cuando esté caído
+    management:
+      health:
+        rabbit:
+          enabled: true

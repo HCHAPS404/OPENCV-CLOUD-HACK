@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  # Base de Datos Geoespacial
+  # Base de Datos Geoespacial y Relacional
   postgres-postgis:
     image: postgis/postgis:16-3.4
     container_name: krop-postgis
@@ -13,8 +11,9 @@ services:
       - "${POSTGRES_PORT}:5432"
     volumes:
       - postgis_data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d
 
-  # Broker de Mensajería
+  # Broker de Mensajería Interna (AMQP)
   rabbitmq:
     image: rabbitmq:3.13-management
     container_name: krop-rabbitmq
@@ -23,21 +22,33 @@ services:
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     ports:
       - "${RABBITMQ_PORT}:5672"        # Puerto AMQP
-      - "${RABBITMQ_MGMT_PORT}:15672"  # Panel Web de Administración
+      - "${RABBITMQ_MGMT_PORT}:15672"  # Panel Web
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
 
-  # Emulador de AWS S3 en Local
+  # Broker MQTT para Telemetría y Dispositivos IoT (ESP32 / Rovers)
+  mqtt-broker:
+    image: eclipse-mosquitto:2.0
+    container_name: krop-mqtt-broker
+    ports:
+      - "${MQTT_PORT}:1883"
+      - "${MQTT_WS_PORT}:9001"
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  # Emulador de AWS S3 Gratuito (Community)
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:3.0.0
     container_name: krop-localstack
     ports:
       - "${LOCALSTACK_PORT}:4566"
     environment:
       - SERVICES=s3
       - AWS_DEFAULT_REGION=${AWS_REGION}
+      - DISABLE_EVENTS=1
 
-  # Backend Principal (Java Spring Boot)
+  # Backend Principal (Java Spring Boot WebFlux)
   core-service:
     build:
       context: ./services/core-service
@@ -46,9 +57,9 @@ services:
     ports:
       - "${CORE_SERVICE_PORT}:8080"
     environment:
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-postgis:5432/${POSTGRES_DB}
-      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
-      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - R2DBC_URL=r2dbc:postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-postgis:5432/${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
       - RABBITMQ_USERNAME=${RABBITMQ_USER}
@@ -60,7 +71,7 @@ services:
       - rabbitmq
       - localstack
 
-  # API para Rovers y Sensores IoT (FastAPI)
+  # API para Rovers y Sensores IoT (FastAPI + Bridge MQTT/AMQP)
   iot-service:
     build:
       context: ./services/iot-service
@@ -70,11 +81,14 @@ services:
       - "${IOT_SERVICE_PORT}:8000"
     environment:
       - RABBITMQ_URL=${RABBITMQ_URL}
+      - MQTT_HOST=${MQTT_HOST}
+      - MQTT_PORT=${MQTT_PORT}
       - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL}
       - S3_BUCKET_NAME=${S3_BUCKET_NAME}
       - AWS_REGION=${AWS_REGION}
     depends_on:
       - rabbitmq
+      - mqtt-broker
       - localstack
 
   # Scheduler en Bucle Local
@@ -93,7 +107,7 @@ services:
       - rabbitmq
       - postgres-postgis
 
-  # Workers de Procesamiento
+  # Worker: Procesamiento de Imágenes Ópticas Satelitales
   optical-worker:
     build:
       context: ./services/workers/optical-worker
@@ -111,6 +125,7 @@ services:
       - rabbitmq
       - postgres-postgis
 
+  # Worker: Procesamiento de Radar SAR (Sentinel-1)
   radar-worker:
     build:
       context: ./services/workers/radar-worker
@@ -127,6 +142,7 @@ services:
       - rabbitmq
       - postgres-postgis
 
+  # Worker: Visión Proximal y Procesamiento OpenCV de Fotos del Rover
   proximal-vision-worker:
     build:
       context: ./services/workers/proximal-vision-worker
@@ -144,6 +160,7 @@ services:
       - rabbitmq
       - postgres-postgis
 
+  # Worker: Series de Tiempo Climáticas y Datos Meteorológicos
   timeseries-weather-worker:
     build:
       context: ./services/workers/timeseries-weather-worker
@@ -162,3 +179,5 @@ services:
 volumes:
   postgis_data:
   rabbitmq_data:
+  mosquitto_data:
+  mosquitto_log:

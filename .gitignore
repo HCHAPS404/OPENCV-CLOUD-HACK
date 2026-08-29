@@ -4,16 +4,26 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+*.swp
+*~
+*.bak
 
 # --- Entornos y Secretos ---
 .env
 *.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .venv/
 venv/
 ENV/
 secrets/
 *.pem
 *.key
+*.p12
+*.jks
+*.keystore
 
 # --- Terraform ---
 .terraform/
@@ -28,6 +38,9 @@ override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+
+# Infracost
+.infracost/
 
 # --- Java / Maven / Gradle / IntelliJ ---
 # Maven
@@ -47,14 +60,29 @@ buildNumber.properties
 build/
 bin/
 out/
+gradle-app.setting
+!.gradle/wrapper/gradle-wrapper.jar
 
-# IntelliJ IDEA
+# IntelliJ IDEA & Android Studio
 .idea/
 *.iml
 *.iws
 *.ipr
 out/
 .fleet/
+.navigation/
+captures/
+.externalNativeBuild
+.cxx/
+local.properties
+
+# --- Android Específico ---
+mobile/.gradle/
+mobile/build/
+mobile/app/build/
+mobile/local.properties
+*.apk
+*.aab
 
 # --- Node.js / TypeScript ---
 node_modules/
@@ -89,7 +117,13 @@ share/python-wheels/
 *.egg
 MANIFEST
 *.sqlite3
+.pytest_cache/
+.coverage
 
-# --- Docker / Contenedores ---
+# --- Docker / Contenedores / Infraestructura Local ---
 docker-data/
 .docker/
+.localstack/
+postgres_data/
+rabbitmq_data/
+*.log
