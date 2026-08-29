@@ -6,10 +6,13 @@ WORKDIR /app
 COPY build.gradle settings.gradle gradlew ./
 COPY gradle ./gradle
 
+# ---> AGREGA ESTA LÍNEA <---
+RUN chmod +x gradlew
+
 # descargamos las dependencias para cachear
 RUN ./gradlew dependencies --no-daemon
 
-# Copiar el codigo fuent ey compilar el jar
+# Copiar el codigo fuente y compilar el jar
 COPY src ./src
 RUN ./gradlew bootJar --no-daemon -x test
 
