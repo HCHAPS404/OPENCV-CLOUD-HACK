@@ -1,4 +1,6 @@
-#variables internas de solo lectura
+# ---------------------------------------------------------------------------
+# Variables internas de solo lectura
+# ---------------------------------------------------------------------------
 locals {
   common_ecr_repos = [
     "core-service",
@@ -33,9 +35,9 @@ module "secrets_manager" {
   source       = "./modules/secrets_manager"
   project_name = var.project_name
   secrets = {
-    db-password        = var.db_password
-    rabbitmq-password  = var.rabbitmq_password
-    satellite-api-key  = var.satellite_api_key != "" ? var.satellite_api_key : "changeme"
+    db-password       = var.db_password
+    rabbitmq-pass = var.rabbitmq_password
+    satellite-api-key = var.satellite_api_key != "" ? var.satellite_api_key : "changeme"
   }
 }
 
@@ -66,20 +68,24 @@ module "rds" {
 }
 
 module "rabbitmq_ec2" {
-  source             = "./modules/rabbitmq_ec2"
-  project_name       = var.project_name
-  private_subnet_id  = module.vpc.private_subnet_ids[0] # Esto es privado no publico
-  security_group_id  = module.security.rabbitmq_sg_id
-  instance_type      = var.rabbitmq_instance_type
-  rabbitmq_user      = var.rabbitmq_user
-  rabbitmq_password  = var.rabbitmq_password
-  key_pair_name      = var.rabbitmq_key_pair_name
+  source            = "./modules/rabbitmq_ec2"
+  project_name      = var.project_name
+  private_subnet_id = module.vpc.private_subnet_ids[0] # Subred privada
+  security_group_id = module.security.rabbitmq_sg_id
+  instance_type     = var.rabbitmq_instance_type
+  rabbitmq_user     = var.rabbitmq_user
+  rabbitmq_password = var.rabbitmq_password
+  key_pair_name     = var.rabbitmq_key_pair_name
 }
 
-module "timestream" {
-  source       = "./modules/timestream"
-  project_name = var.project_name
-}
+# ---------------------------------------------------------------------------
+# TIMESTREAM (Deshabilitado por restricciones de AWS en cuentas nuevas)
+# Para habilitar: Descomentar este bloque y las referencias en apprunner_iot_service.
+# ---------------------------------------------------------------------------
+# module "timestream" {
+#   source       = "./modules/timestream"
+#   project_name = var.project_name
+# }
 
 # ---------------------------------------------------------------------------
 # App Runner: core-service (Java/Spring) e iot-service (FastAPI)
@@ -96,7 +102,7 @@ module "apprunner_core_service" {
 
   secrets_manager_arns = [
     module.secrets_manager.secret_arns["db-password"],
-    module.secrets_manager.secret_arns["rabbitmq-password"],   # secrets de rabbitMQ
+    module.secrets_manager.secret_arns["rabbitmq-pass"],
   ]
 
   environment_variables = {
@@ -108,7 +114,7 @@ module "apprunner_core_service" {
     S3_BUCKET     = module.s3.bucket_name
     AWS_REGION    = var.aws_region
 
-    # --- nuevo: RabbitMQ ---
+    # --- RabbitMQ ---
     RABBITMQ_HOST = module.rabbitmq_ec2.private_ip
     RABBITMQ_PORT = "5672"
     RABBITMQ_USER = var.rabbitmq_user
@@ -116,7 +122,7 @@ module "apprunner_core_service" {
 
   environment_secrets = {
     POSTGRES_PASSWORD = module.secrets_manager.secret_arns["db-password"]
-    RABBITMQ_PASSWORD = module.secrets_manager.secret_arns["rabbitmq-password"]   # rabbitMQ password
+    RABBITMQ_PASSWORD = module.secrets_manager.secret_arns["rabbitmq-pass"]
   }
 
   extra_instance_policy_statements = [
@@ -137,54 +143,60 @@ module "apprunner_iot_service" {
   port                              = var.iot_service_port
   vpc_connector_subnet_ids          = module.vpc.private_subnet_ids
   vpc_connector_security_group_ids  = [module.security.apprunner_iot_sg_id]
+
   secrets_manager_arns = [
     module.secrets_manager.secret_arns["db-password"],
-    module.secrets_manager.secret_arns["rabbitmq-password"],
+    module.secrets_manager.secret_arns["rabbitmq-pass"],
   ]
 
   environment_variables = {
-    DB_HOST                = module.rds.endpoint
-    DB_PORT                = tostring(module.rds.port)
-    DB_NAME                = module.rds.db_name
-    POSTGRES_USER          = var.db_username
-    RABBITMQ_HOST          = module.rabbitmq_ec2.private_ip
-    RABBITMQ_PORT          = "5672"
-    RABBITMQ_USER          = var.rabbitmq_user
-    S3_BUCKET              = module.s3.bucket_name
-    AWS_REGION             = var.aws_region
-    TIMESTREAM_DB          = module.timestream.database_name
-    TIMESTREAM_TABLE       = module.timestream.table_name
+    DB_HOST       = module.rds.endpoint
+    DB_PORT       = tostring(module.rds.port)
+    DB_NAME       = module.rds.db_name
+    POSTGRES_USER = var.db_username
+    RABBITMQ_HOST = module.rabbitmq_ec2.private_ip
+    RABBITMQ_PORT = "5672"
+    RABBITMQ_USER = var.rabbitmq_user
+    S3_BUCKET     = module.s3.bucket_name
+    AWS_REGION    = var.aws_region
+
+    # --- TIMESTREAM (Deshabilitado: se pasa cadena vacía para evitar fallos de lectura) ---
+    TIMESTREAM_DB    = ""
+    TIMESTREAM_TABLE = ""
+    # SI TIMESTREAM ESTÁ ACTIVO, DESCOMENTAR LAS SIGUIENTES 2 LÍNEAS Y COMENTAR LAS DE ARRIBA:
+    # TIMESTREAM_DB    = module.timestream.database_name
+    # TIMESTREAM_TABLE = module.timestream.table_name
   }
 
   environment_secrets = {
-    POSTGRES_PASSWORD  = module.secrets_manager.secret_arns["db-password"]
-    RABBITMQ_PASSWORD  = module.secrets_manager.secret_arns["rabbitmq-password"]
+    POSTGRES_PASSWORD = module.secrets_manager.secret_arns["db-password"]
+    RABBITMQ_PASSWORD = module.secrets_manager.secret_arns["rabbitmq-pass"]
   }
 
   extra_instance_policy_statements = [
-  {
-    Effect   = "Allow"
-    Action   = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
-    Resource = [
-      module.s3.bucket_arn,
-      "${module.s3.bucket_arn}/*"
-    ]
-  },
-  {
-    Effect   = "Allow"
-    Action   = ["timestream:WriteRecords", "timestream:DescribeEndpoints"]
-    Resource = [
-      module.timestream.table_arn,
-      module.timestream.database_arn
-    ]
-  },
-  {
-    Effect   = "Allow"
-    Action   = ["iot:Publish", "iot:Connect"]
-    Resource = ["*"]
-  }
-]
-
+    {
+      Effect   = "Allow"
+      Action   = ["s3:GetObject", "s3:PutObject", "s3:ListBucket"]
+      Resource = [
+        module.s3.bucket_arn,
+        "${module.s3.bucket_arn}/*"
+      ]
+    },
+    # --- TIMESTREAM POLICY (Descomentar cuando el módulo timestream esté activo) ---
+    # {
+    #   Effect   = "Allow"
+    #   Action   = ["timestream:WriteRecords", "timestream:DescribeEndpoints"]
+    #   Resource = [
+    #     module.timestream.table_arn,
+    #     module.timestream.database_arn
+    #   ]
+    # },
+    {
+      Effect   = "Allow"
+      Action   = ["iot:Publish", "iot:Connect"]
+      Resource = ["*"]
+    }
+  ]
 }
 
 # ---------------------------------------------------------------------------
@@ -235,12 +247,12 @@ locals {
 
   worker_common_secrets = {
     POSTGRES_PASSWORD = module.secrets_manager.secret_arns["db-password"]
-    RABBITMQ_PASSWORD = module.secrets_manager.secret_arns["rabbitmq-password"]
+    RABBITMQ_PASSWORD = module.secrets_manager.secret_arns["rabbitmq-pass"]
   }
 
   worker_secrets_manager_arns = [
     module.secrets_manager.secret_arns["db-password"],
-    module.secrets_manager.secret_arns["rabbitmq-password"],
+    module.secrets_manager.secret_arns["rabbitmq-pass"],
   ]
 }
 
@@ -296,22 +308,22 @@ module "worker_proximal_vision" {
 # Lambdas + EventBridge (cron diario 2 AM) + análisis on-demand
 # ---------------------------------------------------------------------------
 module "lambda_satellite_check" {
-  source         = "./modules/lambda"
-  project_name   = var.project_name
-  function_name  = "satellite-check"
-  source_dir     = "${path.module}/lambda_src/satellite_check"
-  timeout        = 120
-  memory_size    = 256
-  vpc_subnet_ids          = module.vpc.private_subnet_ids
-  vpc_security_group_ids  = [module.security.lambda_sg_id]
+  source                 = "./modules/lambda"
+  project_name           = var.project_name
+  function_name          = "satellite-check"
+  source_dir             = "${path.module}/lambda_src/satellite_check"
+  timeout                = 120
+  memory_size            = 256
+  vpc_subnet_ids         = module.vpc.private_subnet_ids
+  vpc_security_group_ids = [module.security.lambda_sg_id]
 
   environment_variables = {
-    RABBITMQ_HOST                 = module.rabbitmq_ec2.private_ip
-    RABBITMQ_PORT                 = "5672"
-    RABBITMQ_USER                 = var.rabbitmq_user
-    RABBITMQ_SECRET_ARN           = module.secrets_manager.secret_arns["rabbitmq-password"]
-    SATELLITE_API_URL             = var.satellite_api_url
-    SATELLITE_API_KEY_SECRET_ARN  = module.secrets_manager.secret_arns["satellite-api-key"]
+    RABBITMQ_HOST                = module.rabbitmq_ec2.private_ip
+    RABBITMQ_PORT                = "5672"
+    RABBITMQ_USER                = var.rabbitmq_user
+    RABBITMQ_SECRET_ARN          = module.secrets_manager.secret_arns["rabbitmq-pass"]
+    SATELLITE_API_URL            = var.satellite_api_url
+    SATELLITE_API_KEY_SECRET_ARN = module.secrets_manager.secret_arns["satellite-api-key"]
   }
 
   extra_policy_statements = [
@@ -319,7 +331,7 @@ module "lambda_satellite_check" {
       Effect   = "Allow"
       Action   = ["secretsmanager:GetSecretValue"]
       Resource = [
-        module.secrets_manager.secret_arns["rabbitmq-password"],
+        module.secrets_manager.secret_arns["rabbitmq-pass"],
         module.secrets_manager.secret_arns["satellite-api-key"],
       ]
     }
@@ -327,30 +339,30 @@ module "lambda_satellite_check" {
 }
 
 module "eventbridge_satellite_check" {
-  source                = "./modules/eventbridge"
-  project_name          = var.project_name
-  lambda_function_name  = module.lambda_satellite_check.function_name
-  lambda_function_arn   = module.lambda_satellite_check.function_arn
-  schedule_expression   = "cron(0 2 * * ? *)"
+  source               = "./modules/eventbridge"
+  project_name         = var.project_name
+  lambda_function_name = module.lambda_satellite_check.function_name
+  lambda_function_arn  = module.lambda_satellite_check.function_arn
+  schedule_expression  = "cron(0 2 * * ? *)"
 }
 
 module "lambda_on_demand_analysis" {
-  source         = "./modules/lambda"
-  project_name   = var.project_name
-  function_name  = "on-demand-analysis"
-  source_dir     = "${path.module}/lambda_src/on_demand_analysis"
-  timeout        = 60
-  memory_size    = 256
-  vpc_subnet_ids          = module.vpc.private_subnet_ids
-  vpc_security_group_ids  = [module.security.lambda_sg_id]
+  source                 = "./modules/lambda"
+  project_name           = var.project_name
+  function_name          = "on-demand-analysis"
+  source_dir             = "${path.module}/lambda_src/on_demand_analysis"
+  timeout                = 60
+  memory_size            = 256
+  vpc_subnet_ids         = module.vpc.private_subnet_ids
+  vpc_security_group_ids = [module.security.lambda_sg_id]
 
   environment_variables = {
-    ANALYSIS_DEBOUNCE_DAYS  = tostring(var.analysis_debounce_days)
-    DB_HOST                 = module.rds.endpoint
-    DB_PORT                 = tostring(module.rds.port)
-    DB_NAME                 = module.rds.db_name
-    POSTGRES_USER           = var.db_username
-    DB_PASSWORD_SECRET_ARN  = module.secrets_manager.secret_arns["db-password"]
+    ANALYSIS_DEBOUNCE_DAYS = tostring(var.analysis_debounce_days)
+    DB_HOST                = module.rds.endpoint
+    DB_PORT                = tostring(module.rds.port)
+    DB_NAME                = module.rds.db_name
+    POSTGRES_USER          = var.db_username
+    DB_PASSWORD_SECRET_ARN = module.secrets_manager.secret_arns["db-password"]
   }
 
   extra_policy_statements = [

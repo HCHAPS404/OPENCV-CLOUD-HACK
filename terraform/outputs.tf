@@ -31,9 +31,9 @@ output "ecs_cluster_name" {
   value = aws_ecs_cluster.workers.name
 }
 
-output "timestream_database_name" {
-  value = module.timestream.database_name
-}
+# output "timestream_database_name" {
+#   value = module.timestream.database_name
+# }
 
 output "vpc_id" {
   value = module.vpc.vpc_id
